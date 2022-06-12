@@ -158,7 +158,7 @@ export function handleLiquidation(event: LogRepay): void {
   // Retrieve cached liquidation that holds amount of collateral to help calculate profit usd (obtained from log remove collateral with from != to)
   let liquidateProxy = getLiquidateEvent(event); // retrieve cached liquidation by subtracting 1 from the current event log index (as we registered the liquidation in logRemoveCollateral that occurs 1 log index before this event)
   if (!liquidateProxy) {
-    log.error('Liquidation {} not found in cache. Liquidation event must be registered in logRemoveCollateral event',[event.transaction.hash.toHexString() + "-" + event.transactionLogIndex.toString()]);
+    log.error(' Liquidation {} not found in cache. Liquidation event must be registered in logRemoveCollateral event',[event.transaction.hash.toHexString() + "-" + event.transactionLogIndex.toString()]);
     return;
   }
   let liquidateEvent = new Liquidate('liquidate' + "-" + event.transaction.hash.toHexString() + "-" + event.transactionLogIndex.toString());
