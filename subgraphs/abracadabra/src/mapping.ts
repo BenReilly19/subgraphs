@@ -139,6 +139,8 @@ export function handleLogBorrow(event: LogBorrow): void {
   borrowEvent.amountUSD = amountUSD;
   borrowEvent.save();
 
+  log.info('test',[]);
+
   updateTotalBorrows(event);
   updateMarketStats(market.id, "BORROW", getMIMAddress(dataSource.network()), event.params.amount, event);
   updateMarketMetrics(event); // must run updateMarketStats first as updateMarketMetrics uses values updated in updateMarketStats
