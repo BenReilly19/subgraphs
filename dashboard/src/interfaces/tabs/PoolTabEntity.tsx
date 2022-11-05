@@ -1,11 +1,12 @@
 import { Box, Button, Grid, Typography } from "@mui/material";
 import { negativeFieldList, PoolName, PoolNames } from "../../constants";
-import { convertTokenDecimals, downloadCSV, JSONToCSVConvertor, toDate } from "../../utils";
+import { base64toBlobJPEG, convertTokenDecimals, downloadCSV, toDate } from "../../utils";
 import { StackedChart } from "../../common/chartComponents/StackedChart";
 import { useEffect, useState } from "react";
 import { CopyLinkToClipboard } from "../../common/utilComponents/CopyLinkToClipboard";
 import { ChartContainer } from "../../common/chartComponents/ChartContainer";
 import moment from "moment";
+import JSZip from "jszip";
 
 function addDataPoint(
   dataFields: { [dataField: string]: { date: Number; value: number }[] },
@@ -70,7 +71,6 @@ function PoolTabEntity({
   setIssues,
   issuesProps,
 }: PoolTabEntityProps) {
-
   const issues: { message: string; type: string; level: string; fieldName: string }[] = [];
   // Get the key name of the pool specific to the protocol type (singular and plural)
   const poolKeySingular = PoolName[data.protocols[0].type];
@@ -79,12 +79,36 @@ function PoolTabEntity({
   const excludedEntities = ["financialsDailySnapshots", "usageMetricsDailySnapshots", "usageMetricsHourlySnapshots"];
   const list: { [x: string]: any } = {};
   const [downloadAllCharts, triggerDownloadAllCharts] = useState<boolean>(false);
+  const [chartsImageFiles, setChartsImageFiles] = useState<any>({});
+
+  useEffect(() => {
+    if (downloadAllCharts) {
+      if (chartsImageFiles) {
+        if (Object.keys(chartsImageFiles).length > 0) {
+          let zip = new JSZip();
+          Object.keys(chartsImageFiles).forEach((fileName) => {
+            const blob = base64toBlobJPEG(chartsImageFiles[fileName]);
+            if (blob) {
+              zip.file(fileName + ".jpeg", blob);
+            }
+          });
+          zip.generateAsync({ type: "base64" }).then(function (content) {
+            const link = document.createElement("a");
+            link.download = "charts.zip";
+            link.href = "data:application/zip;base64," + content;
+            link.click();
+            triggerDownloadAllCharts(false);
+          });
+        }
+      }
+    }
+  }, [chartsImageFiles]);
 
   useEffect(() => {
     if (!!downloadAllCharts) {
       triggerDownloadAllCharts(false);
     }
-  }, [downloadAllCharts])
+  }, [downloadAllCharts]);
 
   useEffect(() => {
     const issuesToSet = { ...issuesProps };
@@ -93,7 +117,6 @@ function PoolTabEntity({
   });
 
   try {
-    // entityName is the type of entity being looped through
     if (!poolId) {
       return null;
     }
@@ -145,7 +168,10 @@ function PoolTabEntity({
 
       if (overlayData?.protocols[0]?.type === "EXCHANGE" && overlayTimeseriesInstance) {
         let value = 0;
-        if (Object.keys(overlayData[poolKeySingular]?.fees)?.length > 0 && overlayTimeseriesInstance.totalValueLockedUSD) {
+        if (
+          Object.keys(overlayData[poolKeySingular]?.fees)?.length > 0 &&
+          overlayTimeseriesInstance.totalValueLockedUSD
+        ) {
           const revenueUSD =
             Number(overlayTimeseriesInstance.dailySupplySideRevenueUSD) * 365 ||
             Number(overlayTimeseriesInstance.hourlySupplySideRevenueUSD) * 24 * 365;
@@ -375,7 +401,7 @@ function PoolTabEntity({
                   } else if (
                     currentRewardToken?.type === "BORROW" &&
                     issues.filter((x) => x.fieldName === entityName + "-" + fieldName && x.type === "BORROW").length ===
-                    0
+                      0
                   ) {
                     issues.push({
                       type: "BORROW",
@@ -465,7 +491,7 @@ function PoolTabEntity({
             { value: 0, date: Number(timeseriesInstance.timestamp) },
             ...overlayDataFields[fieldName],
           ];
-          continue
+          continue;
         }
         if (!overlayTimeseriesInstance) {
           continue;
@@ -494,7 +520,11 @@ function PoolTabEntity({
             overlayDataFields[fieldName] = returnedData.currentEntityField;
             continue;
           }
-          if (!isNaN(currentOverlayInstanceField) && !Array.isArray(currentOverlayInstanceField) && currentOverlayInstanceField) {
+          if (
+            !isNaN(currentOverlayInstanceField) &&
+            !Array.isArray(currentOverlayInstanceField) &&
+            currentOverlayInstanceField
+          ) {
             // Add the data to the array held on the dataField key of the fieldName
             if (!overlayDataFields[fieldName]) {
               overlayDataFields[fieldName] = [];
@@ -540,7 +570,9 @@ function PoolTabEntity({
                 dataFieldKey = " [" + idx + "]";
               }
               if (!overlayDataFields[fieldName + dataFieldKey]) {
-                overlayDataFields[fieldName + dataFieldKey] = [{ value: 0, date: Number(overlayTimeseriesInstance.timestamp) }];
+                overlayDataFields[fieldName + dataFieldKey] = [
+                  { value: 0, date: Number(overlayTimeseriesInstance.timestamp) },
+                ];
               } else {
                 overlayDataFields[fieldName + dataFieldKey].push({
                   value: 0,
@@ -549,7 +581,9 @@ function PoolTabEntity({
               }
               if (fieldName === "rewardTokenEmissionsUSD") {
                 if (!overlayDataFields["rewardAPR" + dataFieldKey]) {
-                  overlayDataFields["rewardAPR" + dataFieldKey] = [{ value: 0, date: Number(overlayTimeseriesInstance.timestamp) }];
+                  overlayDataFields["rewardAPR" + dataFieldKey] = [
+                    { value: 0, date: Number(overlayTimeseriesInstance.timestamp) },
+                  ];
                 } else {
                   overlayDataFields["rewardAPR" + dataFieldKey].push({
                     value: 0,
@@ -628,7 +662,7 @@ function PoolTabEntity({
                   } else if (
                     currentRewardToken?.type === "BORROW" &&
                     issues.filter((x) => x.fieldName === entityName + "-" + fieldName && x.type === "BORROW").length ===
-                    0
+                      0
                   ) {
                     issues.push({
                       type: "BORROW",
@@ -637,7 +671,10 @@ function PoolTabEntity({
                       level: "critical",
                       fieldName: entityName + "-" + fieldName,
                     });
-                  } else if (overlayTimeseriesInstance?.totalDepositBalanceUSD && overlayData.protocols[0].type === "LENDING") {
+                  } else if (
+                    overlayTimeseriesInstance?.totalDepositBalanceUSD &&
+                    overlayData.protocols[0].type === "LENDING"
+                  ) {
                     factors.push("snapshot.totalDepositBalanceUSD");
                     apr = (Number(val) / overlayTimeseriesInstance.totalDepositBalanceUSD) * 100 * 365;
                   } else {
@@ -756,7 +793,12 @@ function PoolTabEntity({
 
       // Push the Reward APR fields to the bottom of the charts section
       if (field.toUpperCase().includes("REWARDAPR") && dataFields[field].length > 0) {
-        if ((field.toUpperCase() === "REWARDAPR" && Object.keys(dataFields).filter(x => x.toUpperCase().includes("REWARDAPR")).length === 1) || (field.toUpperCase() !== "REWARDAPR" && Object.keys(dataFields).filter(x => x.toUpperCase().includes("REWARDAPR")).length > 0)) {
+        if (
+          (field.toUpperCase() === "REWARDAPR" &&
+            Object.keys(dataFields).filter((x) => x.toUpperCase().includes("REWARDAPR")).length === 1) ||
+          (field.toUpperCase() !== "REWARDAPR" &&
+            Object.keys(dataFields).filter((x) => x.toUpperCase().includes("REWARDAPR")).length > 0)
+        ) {
           rewardChart[field] = dataFields[field];
           delete dataFields[field];
         }
@@ -781,14 +823,25 @@ function PoolTabEntity({
           totalWeightAtIdx = totalWeightAtIdx / 100;
         }
         if (
-          Math.abs(1 - totalWeightAtIdx) > .01 &&
+          Math.abs(1 - totalWeightAtIdx) > 0.01 &&
           issues.filter((x) => x.fieldName === entityName + "-inputTokenWeights").length === 0
         ) {
           const fieldName = entityName + "-inputTokenWeights";
           const date = toDate(val.date);
-          issues.push({ type: "VAL", level: "error", fieldName, message: entityName + "-inputTokenWeights on " + date + " add up to " + totalWeightAtIdx + '%, which is more than 1% off of 100%. The inputTokenWeights across all tokens should add up to 100% at any given point.' });
+          issues.push({
+            type: "VAL",
+            level: "error",
+            fieldName,
+            message:
+              entityName +
+              "-inputTokenWeights on " +
+              date +
+              " add up to " +
+              totalWeightAtIdx +
+              "%, which is more than 1% off of 100%. The inputTokenWeights across all tokens should add up to 100% at any given point.",
+          });
         }
-      })
+      });
     }
 
     // The rewardAPRElement logic is used to take all of the rewardAPR and display their lines on one graph
@@ -842,7 +895,16 @@ function PoolTabEntity({
         rewardAPRElement = null;
       } else {
         rewardAPRElement = (
-          <ChartContainer elementId={elementId} downloadAllCharts={downloadAllCharts} identifier={protocolData[Object.keys(protocolData)[0]]?.slug + '-' + data[poolKeySingular]?.id} datasetLabel="rewardAPR" dataChart={rewardChart} dataTable={tableVals} />
+          <ChartContainer
+            elementId={elementId}
+            downloadAllCharts={downloadAllCharts}
+            identifier={protocolData[Object.keys(protocolData)[0]]?.slug + "-" + data[poolKeySingular]?.id}
+            datasetLabel="rewardAPR"
+            dataChart={rewardChart}
+            dataTable={tableVals}
+            chartsImageFiles={chartsImageFiles}
+            setChartsImageFiles={(x: any) => setChartsImageFiles(x)}
+          />
         );
       }
     }
@@ -874,7 +936,16 @@ function PoolTabEntity({
         }
       });
       ratesElement = (
-        <ChartContainer elementId={elementId} downloadAllCharts={downloadAllCharts} identifier={protocolData[Object.keys(protocolData)[0]]?.slug + '-' + data[poolKeySingular]?.id} datasetLabel="RATES" dataTable={tableVals} dataChart={ratesChart} />
+        <ChartContainer
+          elementId={elementId}
+          downloadAllCharts={downloadAllCharts}
+          identifier={protocolData[Object.keys(protocolData)[0]]?.slug + "-" + data[poolKeySingular]?.id}
+          datasetLabel="RATES"
+          dataTable={tableVals}
+          dataChart={ratesChart}
+          chartsImageFiles={chartsImageFiles}
+          setChartsImageFiles={(x: any) => setChartsImageFiles(x)}
+        />
       );
     }
 
@@ -997,73 +1068,75 @@ function PoolTabEntity({
       }
     });
 
-    const mappedCurrentEntityData = currentEntityData.map((instance: any, idx: number) => {
-      let instanceToSave: any = {};
-      instanceToSave.date = moment.utc(Number(instance.timestamp) * 1000).format("YYYY-MM-DD");
-      instanceToSave = { ...instanceToSave, ...instance };
-      if (!!instance.rates) {
-        instance.rates.forEach((rate: any, idx: number) => {
-          instanceToSave["rate [" + idx + "]"] = rate.rate;
-        })
-        delete instanceToSave.rates;
-      }
+    const mappedCurrentEntityData = currentEntityData
+      .map((instance: any, idx: number) => {
+        let instanceToSave: any = {};
+        instanceToSave.date = moment.utc(Number(instance.timestamp) * 1000).format("YYYY-MM-DD");
+        instanceToSave = { ...instanceToSave, ...instance };
+        if (!!instance.rates) {
+          instance.rates.forEach((rate: any, idx: number) => {
+            instanceToSave["rate [" + idx + "]"] = rate.rate;
+          });
+          delete instanceToSave.rates;
+        }
 
-      for (let tokenIdx = 0; tokenIdx < rewardTokensLength; tokenIdx++) {
-        const amt = instance?.rewardTokenEmissionsAmount?.[tokenIdx] || 0;
-        instanceToSave["rewardTokenEmissionsAmount [" + tokenIdx + "]"] = amt;
-        const amtUSD = instance?.rewardTokenEmissionsUSD?.[tokenIdx] || 0;
-        instanceToSave["rewardTokenEmissionsUSD [" + tokenIdx + "]"] = amtUSD;
-        if (Object.keys(rewardChart).length > 0) {
-          const amtAPR = rewardChart[Object.keys(rewardChart)?.[tokenIdx]]?.[idx]?.value || 0;
-          instanceToSave["rewardAPR [" + tokenIdx + "]"] = amtAPR;
+        for (let tokenIdx = 0; tokenIdx < rewardTokensLength; tokenIdx++) {
+          const amt = instance?.rewardTokenEmissionsAmount?.[tokenIdx] || 0;
+          instanceToSave["rewardTokenEmissionsAmount [" + tokenIdx + "]"] = amt;
+          const amtUSD = instance?.rewardTokenEmissionsUSD?.[tokenIdx] || 0;
+          instanceToSave["rewardTokenEmissionsUSD [" + tokenIdx + "]"] = amtUSD;
+          if (Object.keys(rewardChart).length > 0) {
+            const amtAPR = rewardChart[Object.keys(rewardChart)?.[tokenIdx]]?.[idx]?.value || 0;
+            instanceToSave["rewardAPR [" + tokenIdx + "]"] = amtAPR;
+          }
         }
-      }
 
-      for (let idx = 0; idx < inputTokensLength; idx++) {
-        if (!!instance.inputTokenBalances) {
-          const amt = instance?.inputTokenBalances?.[idx] || 0;
-          instanceToSave["inputTokenBalances [" + idx + "]"] = amt;
+        for (let idx = 0; idx < inputTokensLength; idx++) {
+          if (!!instance.inputTokenBalances) {
+            const amt = instance?.inputTokenBalances?.[idx] || 0;
+            instanceToSave["inputTokenBalances [" + idx + "]"] = amt;
+          }
+          if (!!instance.inputTokenWeights) {
+            const amt = instance?.inputTokenWeights?.[idx] || 0;
+            instanceToSave["inputTokenWeights [" + idx + "]"] = amt;
+          }
+          if (!!instance.dailyVolumeByTokenAmount) {
+            const amt = instance?.dailyVolumeByTokenAmount?.[idx] || 0;
+            instanceToSave["dailyVolumeByTokenAmount [" + idx + "]"] = amt;
+          }
+          if (!!instance.dailyVolumeByTokenUSD) {
+            const amt = instance?.dailyVolumeByTokenUSD?.[idx] || 0;
+            instanceToSave["dailyVolumeByTokenUSD [" + idx + "]"] = amt;
+          }
+          if (!!instance.hourlyVolumeByTokenAmount) {
+            const amt = instance?.hourlyVolumeByTokenAmount?.[idx] || 0;
+            instanceToSave["hourlyVolumeByTokenAmount [" + idx + "]"] = amt;
+          }
+          if (!!instance.hourlyVolumeByTokenUSD) {
+            const amt = instance?.hourlyVolumeByTokenUSD?.[idx] || 0;
+            instanceToSave["hourlyVolumeByTokenUSD [" + idx + "]"] = amt;
+          }
         }
-        if (!!instance.inputTokenWeights) {
-          const amt = instance?.inputTokenWeights?.[idx] || 0;
-          instanceToSave["inputTokenWeights [" + idx + "]"] = amt;
-        }
-        if (!!instance.dailyVolumeByTokenAmount) {
-          const amt = instance?.dailyVolumeByTokenAmount?.[idx] || 0;
-          instanceToSave["dailyVolumeByTokenAmount [" + idx + "]"] = amt;
-        }
-        if (!!instance.dailyVolumeByTokenUSD) {
-          const amt = instance?.dailyVolumeByTokenUSD?.[idx] || 0;
-          instanceToSave["dailyVolumeByTokenUSD [" + idx + "]"] = amt;
-        }
-        if (!!instance.hourlyVolumeByTokenAmount) {
-          const amt = instance?.hourlyVolumeByTokenAmount?.[idx] || 0;
-          instanceToSave["hourlyVolumeByTokenAmount [" + idx + "]"] = amt;
-        }
-        if (!!instance.hourlyVolumeByTokenUSD) {
-          const amt = instance?.hourlyVolumeByTokenUSD?.[idx] || 0;
-          instanceToSave["hourlyVolumeByTokenUSD [" + idx + "]"] = amt;
-        }
-      }
 
-      if (!!dataFields.baseYield) {
-        instanceToSave.baseYield = dataFields.baseYield[idx]?.value;
-        if (!dataFields.baseYield[idx]?.value) {
-          instanceToSave.baseYield = 0;
+        if (!!dataFields.baseYield) {
+          instanceToSave.baseYield = dataFields.baseYield[idx]?.value;
+          if (!dataFields.baseYield[idx]?.value) {
+            instanceToSave.baseYield = 0;
+          }
         }
-      }
 
-      delete instanceToSave.rewardTokenEmissionsAmount;
-      delete instanceToSave.rewardTokenEmissionsUSD;
-      delete instanceToSave.inputTokenBalances;
-      delete instanceToSave.inputTokenWeights;
-      delete instanceToSave.dailyVolumeByTokenAmount;
-      delete instanceToSave.dailyVolumeByTokenUSD;
-      delete instanceToSave.hourlyVolumeByTokenAmount;
-      delete instanceToSave.hourlyVolumeByTokenUSD;
-      delete instanceToSave.__typename;
-      return instanceToSave;
-    }).sort((a: any, b: any) => (Number(a.timestamp) - Number(b.timestamp)));
+        delete instanceToSave.rewardTokenEmissionsAmount;
+        delete instanceToSave.rewardTokenEmissionsUSD;
+        delete instanceToSave.inputTokenBalances;
+        delete instanceToSave.inputTokenWeights;
+        delete instanceToSave.dailyVolumeByTokenAmount;
+        delete instanceToSave.dailyVolumeByTokenUSD;
+        delete instanceToSave.hourlyVolumeByTokenAmount;
+        delete instanceToSave.hourlyVolumeByTokenUSD;
+        delete instanceToSave.__typename;
+        return instanceToSave;
+      })
+      .sort((a: any, b: any) => Number(a.timestamp) - Number(b.timestamp));
 
     return (
       <Grid key={entityName}>
@@ -1073,8 +1146,20 @@ function PoolTabEntity({
           </CopyLinkToClipboard>
         </Box>
         <div>
-          <div style={{ width: "25%", display: "block", paddingLeft: "5px", textAlign: "left", color: "white" }} className="Hover-Underline MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeMedium MuiButton-textSizeMedium MuiButtonBase-root  css-1huqmjz-MuiButtonBase-root-MuiButton-root" onClick={() => downloadCSV(mappedCurrentEntityData, entityName, entityName)} >Download Snapshots as csv</div>
-          <div style={{ width: "25%", display: "block", paddingLeft: "5px", textAlign: "left", color: "white" }} className="Hover-Underline MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeMedium MuiButton-textSizeMedium MuiButtonBase-root  css-1huqmjz-MuiButtonBase-root-MuiButton-root" onClick={() => triggerDownloadAllCharts(true)} >Download All Charts</div>
+          <div
+            style={{ width: "25%", display: "block", paddingLeft: "5px", textAlign: "left", color: "white" }}
+            className="Hover-Underline MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeMedium MuiButton-textSizeMedium MuiButtonBase-root  css-1huqmjz-MuiButtonBase-root-MuiButton-root"
+            onClick={() => downloadCSV(mappedCurrentEntityData, entityName, entityName)}
+          >
+            Download Snapshots as csv
+          </div>
+          <div
+            style={{ width: "25%", display: "block", paddingLeft: "5px", textAlign: "left", color: "white" }}
+            className="Hover-Underline MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeMedium MuiButton-textSizeMedium MuiButtonBase-root  css-1huqmjz-MuiButtonBase-root-MuiButton-root"
+            onClick={() => triggerDownloadAllCharts(true)}
+          >
+            Download All Charts
+          </div>
         </div>
         {Object.keys(dataFields).map((field: string) => {
           const fieldName = field.split(" [")[0];
@@ -1234,10 +1319,29 @@ function PoolTabEntity({
           }
           let dataChartToPass: any = dataFields[field];
           if (overlayDataFields[field]) {
-            dataChartToPass = { current: dataFields[field], overlay: overlayDataFields[field] };
+            const baseKey = `${data?.protocols[0]?.name}-${data?.protocols[0]?.network || ""}-${
+              data?.protocols[0]?.subgraphVersion
+            }`;
+            const overlayKey = `${overlayData?.protocols[0]?.name}-${overlayData?.protocols[0]?.network || ""}-${
+              overlayData?.protocols[0]?.subgraphVersion
+            }`;
+            let keyDiff = "";
+            if (baseKey === overlayKey) {
+              keyDiff = " (Overlay)";
+            }
+            dataChartToPass = { [baseKey]: dataFields[field], [overlayKey + keyDiff]: overlayDataFields[field] };
           }
           return (
-            <ChartContainer elementId={elementId} downloadAllCharts={downloadAllCharts} identifier={protocolData[Object.keys(protocolData)[0]]?.slug + '-' + data[poolKeySingular]?.id} datasetLabel={label} dataTable={dataFields[field]} dataChart={dataChartToPass} />
+            <ChartContainer
+              elementId={elementId}
+              downloadAllCharts={downloadAllCharts}
+              identifier={protocolData[Object.keys(protocolData)[0]]?.slug + "-" + data[poolKeySingular]?.id}
+              datasetLabel={label}
+              dataTable={dataFields[field]}
+              dataChart={dataChartToPass}
+              chartsImageFiles={chartsImageFiles}
+              setChartsImageFiles={(x: any) => setChartsImageFiles(x)}
+            />
           );
         })}
         {ratesElement}
