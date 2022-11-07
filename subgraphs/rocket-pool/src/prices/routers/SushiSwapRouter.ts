@@ -69,7 +69,7 @@ export function getPriceFromRouter(
 
   const path: Address[] = [];
   let numberOfJumps: BigInt;
-  let inputTokenIsWeth: bool =
+  const inputTokenIsWeth: bool =
     token0Address == wethAddress || token1Address == wethAddress;
 
   if (inputTokenIsWeth) {
@@ -145,7 +145,7 @@ export function getLpTokenPriceUsdc(
     return new CustomPriceType();
   }
 
-  let pairDecimals = utils.readValue<i32>(
+  const pairDecimals = utils.readValue<i32>(
     sushiswapPair.try_decimals(),
     constants.DEFAULT_DECIMALS.toI32() as u8
   );

@@ -394,7 +394,7 @@ export function getOrCreateFinancialDailyMetrics(
 ): FinancialsDailySnapshot {
   const dayId: string = (block.timestamp.toI64() / SECONDS_PER_DAY).toString();
   let financialMetrics = FinancialsDailySnapshot.load(dayId);
-  let pool = getOrCreatePool(block.number, block.timestamp);
+  const pool = getOrCreatePool(block.number, block.timestamp);
 
   if (!financialMetrics) {
     financialMetrics = new FinancialsDailySnapshot(dayId);

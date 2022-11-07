@@ -59,7 +59,7 @@ export function getOrCreateMinipool(
 
     const rocketPoolFeesContract = rocketNetworkFees.bind(rocketPoolFee);
 
-    let comission = rocketPoolFeesContract.try_getNodeFee();
+    const comission = rocketPoolFeesContract.try_getNodeFee();
 
     if (comission.reverted) {
       log.error("getNodeFee call reverted", []);
