@@ -3,9 +3,7 @@ import { Pool } from "../../generated/schema";
 import { getOrCreateProtocol } from "./protocol";
 import { getOrCreateToken, getOrCreateRewardToken } from "./token";
 import {
-  BIGDECIMAL_ONE,
   BIGDECIMAL_ZERO,
-  BIGINT_ONE,
   BIGINT_ZERO,
   ETH_ADDRESS,
   RPL_ADDRESS,
@@ -15,7 +13,7 @@ export function getOrCreatePool(
   blockNumber: BigInt,
   blockTimestamp: BigInt
 ): Pool {
-  let protocol = getOrCreateProtocol();
+  const protocol = getOrCreateProtocol();
   let pool = Pool.load(protocol.id);
 
   if (!pool) {

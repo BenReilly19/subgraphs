@@ -1,5 +1,5 @@
 import { Address, BigInt, log } from "@graphprotocol/graph-ts";
-import { Pool, Minipool } from "../../generated/schema";
+import { Minipool } from "../../generated/schema";
 import { getOrCreateProtocol } from "./protocol";
 import { getOrCreatePool } from "./pool";
 import { getOrCreateToken } from "./token";
@@ -20,8 +20,8 @@ export function getOrCreateMinipool(
   blockTimestamp: BigInt,
   miniPoolAddress: string
 ): Minipool {
-  let protocol = getOrCreateProtocol();
-  let pool = getOrCreatePool(blockNumber, blockTimestamp);
+  const protocol = getOrCreateProtocol();
+  const pool = getOrCreatePool(blockNumber, blockTimestamp);
   let minipool = Minipool.load(miniPoolAddress);
 
   if (!minipool) {
@@ -57,7 +57,7 @@ export function getOrCreateMinipool(
     let comissionRate = BIGDECIMAL_ZERO;
     const rocketPoolFee = getStorageAddress(FEESENCODE);
 
-    let rocketPoolFeesContract = rocketNetworkFees.bind(rocketPoolFee);
+    const rocketPoolFeesContract = rocketNetworkFees.bind(rocketPoolFee);
 
     let comission = rocketPoolFeesContract.try_getNodeFee();
 
@@ -76,7 +76,7 @@ export function getOrCreateMinipool(
     protocol.totalPoolCount += 1;
     protocol.save();
 
-    let pools = pool._miniPools;
+    const pools = pool._miniPools;
 
     if (pools) {
       pools.push(miniPoolAddress);

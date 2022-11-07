@@ -1,11 +1,5 @@
-import {
-  BigDecimal,
-  BigInt,
-  Address,
-  log,
-  Bytes,
-} from "@graphprotocol/graph-ts";
-import { bigIntToBigDecimal, getMean } from "../utils/numbers";
+import { BigDecimal, Address, log, Bytes } from "@graphprotocol/graph-ts";
+import { bigIntToBigDecimal } from "../utils/numbers";
 import {
   EtherDeposited,
   EtherWithdrawn,
@@ -40,7 +34,6 @@ import {
   BIGINT_NEGATIVE_ONE,
   BIGDECIMAL_HALF,
   STORAGE,
-  ONE_ETH_IN_WEI,
   BIGDECIMAL_ZERO,
   DEFAULT_COMMISSION,
 } from "../utils/constants";
@@ -49,7 +42,7 @@ import { getOrCreatePool } from "../entities/pool";
 /** Queries Storage Address for current address of encode. encode is the string of the name of the rocketpool contract, which has been keccack256(abi.unpack(string)) in solidity. */
 export function getStorageAddress(encode: Bytes): Address {
   const storage = RocketStorage.bind(Address.fromString(STORAGE));
-  let address = storage.try_getAddress(encode);
+  const address = storage.try_getAddress(encode);
   if (address.reverted) {
     log.info("getStorageAddress call reverted", []);
     return Address.fromString("0x0000000000000000000000000000000000000000");
@@ -144,18 +137,16 @@ export function handleRPLSlashed(event: RPLSlashed): void {
 }
 
 export function handleTokensClaimed(event: RPLTokensClaimed): void {
-  let reth = RETH.bind(Address.fromString(RETH_ADDRESS));
+  const reth = RETH.bind(Address.fromString(RETH_ADDRESS));
 
-  let totalSupply = reth.try_totalSupply();
+  const totalSupply = reth.try_totalSupply();
 
   let totalsupply = BIGINT_ZERO;
 
   if (totalSupply.reverted) {
-    log.error("[handleBalanceUpdate] Total supply call reverted", []);
   } else {
     totalsupply = totalSupply.value;
   }
-
   updateUsageMetrics(event.block, event.params.claimingAddress);
   updateTotalRevenueMetrics(
     event.block,
@@ -174,9 +165,9 @@ export function handleBalanceUpdate(event: BalancesUpdated): void {
     BeaconChainRewardEth.toString(),
   ]);
 
-  let reth = RETH.bind(Address.fromString(RETH_ADDRESS));
+  const reth = RETH.bind(Address.fromString(RETH_ADDRESS));
 
-  let totalSupply = reth.try_totalSupply();
+  const totalSupply = reth.try_totalSupply();
 
   let totalsupply = BIGINT_ZERO;
 
@@ -185,37 +176,20 @@ export function handleBalanceUpdate(event: BalancesUpdated): void {
   } else {
     totalsupply = totalSupply.value;
   }
-  let pool = getOrCreatePool(event.block.number, event.block.timestamp);
+  const pool = getOrCreatePool(event.block.number, event.block.timestamp);
   const pools = pool._miniPools;
   if (pools) {
-    var cumrevCounter: BigDecimal = BIGDECIMAL_ZERO;
-    let avg_ComissionRate = DEFAULT_COMMISSION;
+    let cumrevCounter: BigDecimal = BIGDECIMAL_ZERO;
+    const avg_ComissionRate = DEFAULT_COMMISSION;
 
-    let Comissions = pool._miniPoolCommission;
-
-    // log.error("[handleBalanceUpdate] sum: {}", [Comissions!.toString()]);
-
-    // if (Comissions && Comissions.length > 0) {
-    //   avg_ComissionRate = getMean(Comissions);
-    // }
-    // log.error("[handleBalanceUpdate] comission rate: {}", [
-    //   avg_ComissionRate.toString(),
-    // ]);
     cumrevCounter = bigIntToBigDecimal(BeaconChainRewardEth);
-    // log.error("[handleBalanceUpdate] cumRev: {}", [cumrevCounter.toString()]);
 
-    let minipoolMultiplier = BIGDECIMAL_HALF.plus(
+    const minipoolMultiplier = BIGDECIMAL_HALF.plus(
       BIGDECIMAL_HALF.times(avg_ComissionRate)
     );
-    // log.error("[handleBalanceUpdate] minipool multiplier: {}", [
-    //   minipoolMultiplier.toString(),
-    // ]);
 
-    let minipoolRevenue =
+    const minipoolRevenue =
       bigIntToBigDecimal(BeaconChainRewardEth).times(minipoolMultiplier);
-    // log.error("[handleBalanceUpdate] minipool rev in eth: {}", [
-    //   minipoolRevenue.toString(),
-    // ]);
 
     updateTotalRevenueMetrics(
       event.block,
